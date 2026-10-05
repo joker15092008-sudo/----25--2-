@@ -1,0 +1,148 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace CinemaBooking
+{
+    class Movie
+    {
+        public string Title; public int Duration;
+        public Movie(string t, int d) { Title = t; Duration = d; }
+        public override string ToString() => $"{Title} ({Duration} мин.)";
+    }
+
+    class Seat
+    {
+        public int Number; public bool IsReserved;
+        public Seat(int n) { Number = n; }
+        public bool Reserve() { if (IsReserved) return false; IsReserved = true; return true; }
+        public void Cancel() => IsReserved = false;
+        public override string ToString() => $"[{Number}]{(IsReserved ? "X" : "O")}";
+    }
+
+    class Booking
+    {
+        public Movie Movie; public Seat Seat; public Customer Customer;
+        public Booking(Movie m, Seat s, Customer c) { Movie = m; Seat = s; Customer = c; }
+        public override string ToString() => $"{Movie.Title} | место {Seat.Number} | {Customer.Name}";
+    }
+
+    class Customer
+    {
+        public string Name; public List<Booking> Bookings = new List<Booking>();
+        public Customer(string n) { Name = n; }
+        public override string ToString() => $"{Name}: броней {Bookings.Count}";
+    }
+
+    class CinemaHall
+    {
+        public List<Seat> Seats = new List<Seat>();
+        public CinemaHall(int count) { for (int i = 1; i <= count; i++) Seats.Add(new Seat(i)); }
+        public Seat GetSeat(int n) => Seats.FirstOrDefault(s => s.Number == n);
+        public void ShowScheme()
+        {
+            Console.WriteLine("Схема зала (O - свободно, X - занято):");
+            foreach (var s in Seats) Console.Write(s + " ");
+            Console.WriteLine();
+        }
+    }
+
+    class BookingService
+    {
+        CinemaHall hall; List<Movie> movies;
+        public BookingService(CinemaHall h, List<Movie> m) { hall = h; movies = m; }
+
+        public void ShowMovies()
+        {
+            Console.WriteLine("\nФильмы:");
+            for (int i = 0; i < movies.Count; i++) Console.WriteLine($"{i + 1}. {movies[i]}");
+        }
+
+        public Movie GetMovie(int i) => (i >= 0 && i < movies.Count) ? movies[i] : null;
+
+        public Booking Reserve(Movie m, int seatNum, Customer c)
+        {
+            var seat = hall.GetSeat(seatNum);
+            if (seat == null) { Console.WriteLine("Место не найдено."); return null; }
+            if (!seat.Reserve()) { Console.WriteLine($"Место {seatNum} занято!"); return null; }
+            var b = new Booking(m, seat, c);
+            c.Bookings.Add(b);
+            Console.WriteLine($"Забронировано: {b}");
+            return b;
+        }
+
+        public void Cancel(Booking b)
+        {
+            if (b == null) return;
+            b.Seat.Cancel();
+            b.Customer.Bookings.Remove(b);
+            Console.WriteLine($"Отменено: {b}");
+        }
+    }
+
+    class Program
+    {
+        static void Main()
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            var movies = new List<Movie>
+            {
+                new Movie("Интерстеллар", 169),
+                new Movie("Начало", 148),
+                new Movie("Матрица", 136)
+            };
+
+            var hall = new CinemaHall(10);
+            var service = new BookingService(hall, movies);
+
+            Console.Write("Ваше имя: ");
+            var customer = new Customer(Console.ReadLine() ?? "Гость");
+
+            while (true)
+            {
+                Console.WriteLine("\n1-Фильмы 2-Зал 3-Бронь 4-Мои брони 5-Отмена 0-Выход");
+                Console.Write("Выбор: ");
+                switch (Console.ReadLine())
+                {
+                    case "1": service.ShowMovies(); break;
+
+                    case "2": hall.ShowScheme(); break;
+
+                    case "3":
+                        service.ShowMovies();
+                        Console.Write("Фильм №: ");
+                        if (!int.TryParse(Console.ReadLine(), out int mi)) break;
+                        var movie = service.GetMovie(mi - 1);
+                        if (movie == null) { Console.WriteLine("Нет такого фильма."); break; }
+
+                        hall.ShowScheme();
+                        Console.Write("Место №: ");
+                        if (!int.TryParse(Console.ReadLine(), out int sn)) break;
+                        service.Reserve(movie, sn, customer);
+                        break;
+
+                    case "4":
+                        if (customer.Bookings.Count == 0) Console.WriteLine("Броней нет.");
+                        else for (int i = 0; i < customer.Bookings.Count; i++)
+                            Console.WriteLine($"{i + 1}. {customer.Bookings[i]}");
+                        break;
+
+                    case "5":
+                        if (customer.Bookings.Count == 0) { Console.WriteLine("Броней нет."); break; }
+                        for (int i = 0; i < customer.Bookings.Count; i++)
+                            Console.WriteLine($"{i + 1}. {customer.Bookings[i]}");
+                        Console.Write("Номер брони для отмены: ");
+                        if (int.TryParse(Console.ReadLine(), out int idx) && idx >= 1 && idx <= customer.Bookings.Count)
+                            service.Cancel(customer.Bookings[idx - 1]);
+                        break;
+
+                    case "0":
+                        hall.ShowScheme();
+                        Console.WriteLine(customer);
+                        return;
+                }
+            }
+        }
+    }
+}
